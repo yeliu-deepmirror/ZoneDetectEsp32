@@ -65,17 +65,26 @@ void app_main(void) {
   if (!cd) {
     DMLOG("[GPS] open data base failed.\n");
   } else {
-    // Latitude: 22.781663 / N 22° 46' 53.988''
-    // Longitude: 113.513604 / E 113° 30' 48.972''
-    const float lat = 22.781663;
-    const float lon = 113.513604;
+    {
+      const float lat = 22.781663;
+      const float lon = 113.513604;
+      DMLOG("[GPS] test %f %f\n", lat, lon);
 
-    float safezone = 0;
-    ZoneDetectResult* results = ZDLookup(cd, lat, lon, &safezone);
-    ZonePrintResults(cd, results, safezone);
+      float safezone = 0;
+      ZoneDetectResult* results = ZDLookup(cd, lat, lon, &safezone);
+      ZonePrintResults(cd, results, safezone);
+      DMLOG("The simple string is [%s]\n", ZDHelperSimpleLookupString(cd, lat, lon));
+    }
+    {
+      const float lat = 50.257067746810;
+      const float lon = 5.065349821;
+      DMLOG("[GPS] test %f %f\n", lat, lon);
 
-    DMLOG("The simple string is [%s]\n", ZDHelperSimpleLookupString(cd, lat, lon));
-
+      float safezone = 0;
+      ZoneDetectResult* results = ZDLookup(cd, lat, lon, &safezone);
+      ZonePrintResults(cd, results, safezone);
+      DMLOG("The simple string is [%s]\n", ZDHelperSimpleLookupString(cd, lat, lon));
+    }
   }
   PrintMemoryInfo();
 
