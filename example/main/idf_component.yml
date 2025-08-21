@@ -1,0 +1,6 @@
+dependencies:
+  idf: '>=5.5'
+  ZoneDetectEsp32:
+    version: '*'
+    override_path: "../../"
+    pre_release: true
