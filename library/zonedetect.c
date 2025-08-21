@@ -39,12 +39,19 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+#include <errno.h>
+#include <sys/stat.h>
+// #include <sys/mman.h>
+#else
+#include <errno.h>
 #endif
 
 #include "zonedetect.h"
 
 enum ZDInternalError {
     ZD_OK,
+    ZD_E_DB_FS,
     ZD_E_DB_OPEN,
     ZD_E_DB_SEEK,
     ZD_E_DB_MMAP,
@@ -67,6 +74,9 @@ struct ZoneDetectOpaque {
 #elif defined(__APPLE__) || defined(__linux__) || defined(__unix__) || defined(_POSIX_VERSION)
     int fd;
     off_t length;
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+    FILE* fd;
+    int32_t length;
 #else
     int length;
 #endif
@@ -806,6 +816,9 @@ void ZDCloseDatabase(ZoneDetect *library)
 #elif defined(__APPLE__) || defined(__linux__) || defined(__unix__) || defined(_POSIX_VERSION)
             if(library->mapping && munmap(library->mapping, (size_t)(library->length))) zdError(ZD_E_DB_MUNMAP, 0);
             if(library->fd >= 0 && close(library->fd))                                  zdError(ZD_E_DB_CLOSE, 0);
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+            // if(library->mapping && munmap(library->mapping, (size_t)(library->length))) zdError(ZD_E_DB_MUNMAP, 0);
+            if(library->fd >= 0 && fclose(library->fd) != EOF)                          zdError(ZD_E_DB_CLOSE, 0);
 #endif
         }
 
@@ -898,6 +911,31 @@ ZoneDetect *ZDOpenDatabase(const char *path)
             zdError(ZD_E_DB_MMAP, errno);
             goto fail;
         }
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+        // we are in esp32 system
+        library->fd = fopen(path, "rb");
+        if (!library->fd) {
+            zdError(ZD_E_DB_OPEN, errno);
+            goto fail;
+        }
+        struct stat st;
+        if (stat(path, &st) == 0) {
+          library->length = st.st_size;
+        } else {
+          zdError(ZD_E_DB_SEEK, errno);
+          goto fail;
+        }
+
+        zdError(ZD_E_DB_FS, errno);
+        goto fail;
+        // library->mapping = mmap(NULL, (size_t)library->length, PROT_READ, MAP_PRIVATE | MAP_FILE, library->fd, 0);
+        // if(library->mapping == MAP_FAILED) {
+        //     zdError(ZD_E_DB_MMAP, errno);
+        //     goto fail;
+        // }
+#else
+        zdError(ZD_E_DB_FS, errno);
+        goto fail;
 #endif
 
         /* Parse the header */
@@ -1151,6 +1189,8 @@ const char *ZDGetErrorString(int errZD)
     switch ((enum ZDInternalError)errZD) {
         default:
             assert(0);
+        case ZD_E_DB_FS           :
+            return ZD_E_COULD_NOT("file system not available");
         case ZD_OK                :
             return "";
         case ZD_E_DB_OPEN         :

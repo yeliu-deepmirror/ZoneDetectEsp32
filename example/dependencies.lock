@@ -1,0 +1,19 @@
+dependencies:
+  ZoneDetectEsp32:
+    dependencies:
+    - name: idf
+      version: '>=5.5'
+    source:
+      path: /MobiliADashi/submodules/ZoneDetectEsp32
+      type: local
+    version: '*'
+  idf:
+    source:
+      type: idf
+    version: 5.5.0
+direct_dependencies:
+- ZoneDetectEsp32
+- idf
+manifest_hash: c2c2b2161740bb18e9f5a8855faf564a34741bcc50ea9cb5bd8c66c748038fc3
+target: esp32s3
+version: 2.0.0
