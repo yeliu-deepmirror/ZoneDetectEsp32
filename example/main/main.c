@@ -76,8 +76,8 @@ void app_main(void) {
 
     DMLOG("The simple string is [%s]\n", ZDHelperSimpleLookupString(cd, lat, lon));
 
-    ZDCloseDatabase(cd);
   }
-
   PrintMemoryInfo();
+
+  if (cd) ZDCloseDatabase(cd);
 }
