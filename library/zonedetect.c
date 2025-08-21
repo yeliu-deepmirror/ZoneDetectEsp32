@@ -82,6 +82,10 @@ struct ZoneDetectOpaque {
     uint32_t length;
     esp_partition_t *partition;
     esp_partition_mmap_handle_t map_handle;
+
+    esp_partition_t *partition_csv;
+    esp_partition_mmap_handle_t map_handle_csv;
+    char* mapping_csv_data;
 #else
     int length;
 #endif
@@ -832,6 +836,7 @@ void ZDCloseDatabase(ZoneDetect *library)
             // if(library->fd >= 0 && fclose(library->fd) != EOF)                          zdError(ZD_E_DB_CLOSE, 0);
             // Unmap mapped memory
             esp_partition_munmap(library->map_handle);
+            esp_partition_munmap(library->map_handle_csv);
             ESP_LOGI(TAG, "Unmapped partition from data memory");
 #endif
         }
@@ -872,6 +877,54 @@ ZoneDetect *ZDOpenDatabaseFromMemory(void* buffer, size_t length)
 fail:
     ZDCloseDatabase(library);
     return NULL;
+}
+
+bool CsvQueryTimeZone(ZoneDetect *library, const char* zone_name, char* result, size_t result_size) {
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+  // Example: parse CSV without copying
+  const char *csv_ptr = (const char*)library->mapping_csv_data;
+  size_t line_cnt = 1;
+  size_t zone_len = strlen(zone_name);
+  while (*csv_ptr && csv_ptr < (const char*)library->mapping_csv_data + library->partition_csv->size) {
+      // parse line by line
+      const char *line_end = strchr(csv_ptr, '\n');
+      if (!line_end) break;
+      // ESP_LOGI(TAG, "Line: %d %s %.*s", line_cnt, zone_name, (int)(line_end - csv_ptr), csv_ptr);
+
+      if (strncmp(zone_name, csv_ptr + 1, zone_len) == 0) {
+        const char *result_start = strchr(csv_ptr, ',') + 2;
+        snprintf(result, result_size, "%.*s", (int)(line_end - result_start - 1), result_start);
+        return true;
+      }
+
+      csv_ptr = line_end + 1;
+      if (++line_cnt > LINES_IN_CSV_FILE) break;
+  }
+  return false;
+#else
+  return false;
+#endif
+}
+
+
+bool ZDOpenDatabaseMap(ZoneDetect *library, const char *path) {
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+  // Find the partition map in the partition table
+  library->partition_csv = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, path);
+  if (library->partition_csv == NULL) {
+    zdError(ZD_E_DB_OPEN, errno);
+    return false;
+  }
+  const void *map_ptr = NULL;
+  // Map the partition to data memory
+  ESP_ERROR_CHECK(esp_partition_mmap(library->partition_csv, 0, library->partition_csv->size, ESP_PARTITION_MMAP_DATA, &map_ptr, &library->map_handle_csv));
+  ESP_LOGI(TAG, "Mapped %lu csv partition to data memory address %p", library->partition_csv->size, map_ptr);
+  library->mapping_csv_data = map_ptr;
+
+  return true;
+#else
+  return false;
+#endif
 }
 
 ZoneDetect *ZDOpenDatabase(const char *path)

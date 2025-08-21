@@ -71,6 +71,10 @@ ZD_EXPORT ZoneDetect *ZDOpenDatabase(const char *path);
 ZD_EXPORT ZoneDetect *ZDOpenDatabaseFromMemory(void* buffer, size_t length);
 ZD_EXPORT void        ZDCloseDatabase(ZoneDetect *library);
 
+#define LINES_IN_CSV_FILE 461
+ZD_EXPORT bool        CsvQueryTimeZone(ZoneDetect *library, const char* zone_name, char* result, size_t result_size);
+ZD_EXPORT bool        ZDOpenDatabaseMap(ZoneDetect *library, const char *path);
+
 ZD_EXPORT ZoneDetectResult *ZDLookup(const ZoneDetect *library, float lat, float lon, float *safezone);
 ZD_EXPORT void              ZDFreeResults(ZoneDetectResult *results);
 

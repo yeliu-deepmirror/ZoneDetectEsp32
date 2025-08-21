@@ -33,23 +33,46 @@ idf.py build flash monitor
 ```
 
 ```
-[MEM] Internal Free Heap: 389524 bytes
+[MEM] Internal Free Heap: 389372 bytes
 [MEM] Largest Free Block: 327680 bytes, DMA : 327680 bytes
 [MEM] PSRAM Free Heap: 0 / 0 bytes
-I (274) ZoneDetect: Mapped 6041600 partition to data memory address 0x3c034000
-I (281) ZoneDetect: tableType: 84, version: 1, precision: 16, numFields: 4
+I (279) ZoneDetect: Mapped 6041600 partition to data memory address 0x3c030000
+I (286) ZoneDetect: tableType: 84, version: 1, precision: 16, numFields: 4
+I (293) ZoneDetect: Mapped 32768 csv partition to data memory address 0x3c600000
+
+[GPS] test 47.509800 0.485065
 In zone:
-  meta: 5636
-  polygon: 1151
-  TimezoneIdPrefix: Asia/
-  TimezoneId: Shanghai
-  CountryAlpha2: CN
-  CountryName: China
-Safezone: 1.272352
+  meta: 7097
+  polygon: 1600
+  TimezoneIdPrefix: Europe/
+  TimezoneId: Paris
+  CountryAlpha2: FR
+  CountryName: France
+Safezone: 2.152767
+The simple string is [Europe/Paris]
+Time zone CET-1CEST,M3.5.0,M10.5.0/3
+Local time: 2025-08-21 09:02:13 CEST
+
+[GPS] test 50.257069 5.065350
+In zone:
+  meta: 6581
+  polygon: 1692
+  TimezoneIdPrefix: Europe/
+  TimezoneId: Brussels
+  CountryAlpha2: BE
+  CountryName: Belgium
+Safezone: 0.207235
+The simple string is [Europe/Brussels]
+Time zone CET-1CEST,M3.5.0,M10.5.0/3
+Local time: 2025-08-21 09:02:13 CEST
+
+[GPS] test 22.781664 113.513603
 The simple string is [Asia/Shanghai]
-[MEM] Internal Free Heap: 388336 bytes
+Time zone CST-8
+Local time: 2025-08-21 15:02:13 CST
+[MEM] Internal Free Heap: 387984 bytes
 [MEM] Largest Free Block: 327680 bytes, DMA : 327680 bytes
 [MEM] PSRAM Free Heap: 0 / 0 bytes
-I (468) ZoneDetect: Unmapped partition from data memory
-I (473) main_task: Returned from app_main()
+I (675) ZoneDetect: Unmapped partition from data memory
+I (680) main_task: Returned from app_main()
 ```

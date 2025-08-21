@@ -1,5 +1,7 @@
 // Copyright 2025 MOBILI Inc. All rights reserved.
 
+#include <time.h>
+#include <sys/time.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -55,6 +57,22 @@ void ZonePrintResults(ZoneDetect* cd, ZoneDetectResult* results, float safezone)
   }
 }
 
+void SetAndTransformUnixTime(int64_t unit_time_int, const char* time_zone) {
+  // test to set time zone and convert unix time
+  setenv("TZ", time_zone, 1);  // set timezone environment variable
+  tzset();                      // apply it
+
+  // Thu Aug 21 2025 07:02:13 GMT+0000
+  time_t unix_time = unit_time_int;  // example GPS UTC timestamp
+  struct tm local_tm;
+
+  localtime_r(&unix_time, &local_tm);
+
+  char buf[64];
+  strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S %Z", &local_tm);
+  DMLOG("Local time: %s\n", buf);
+}
+
 void app_main(void) {
 
   PrintMemoryInfo();
@@ -65,25 +83,57 @@ void app_main(void) {
   if (!cd) {
     DMLOG("[GPS] open data base failed.\n");
   } else {
+    ZDOpenDatabaseMap(cd, "tzcsv");
+    char buffer_zone[64];
     {
-      const float lat = 22.781663;
-      const float lon = 113.513604;
-      DMLOG("[GPS] test %f %f\n", lat, lon);
+      const float lat = 47.5098014;
+      const float lon = 0.485065422;
+      DMLOG("\n[GPS] test %f %f\n", lat, lon);
 
       float safezone = 0;
       ZoneDetectResult* results = ZDLookup(cd, lat, lon, &safezone);
       ZonePrintResults(cd, results, safezone);
+
+      char* simple_str = ZDHelperSimpleLookupString(cd, lat, lon);
       DMLOG("The simple string is [%s]\n", ZDHelperSimpleLookupString(cd, lat, lon));
+      if (CsvQueryTimeZone(cd, simple_str, buffer_zone, 64)) {
+        DMLOG("Time zone %s\n", buffer_zone);
+        SetAndTransformUnixTime(1755759733, buffer_zone);
+      }
+      free(simple_str);
     }
     {
       const float lat = 50.257067746810;
       const float lon = 5.065349821;
-      DMLOG("[GPS] test %f %f\n", lat, lon);
+      DMLOG("\n[GPS] test %f %f\n", lat, lon);
 
       float safezone = 0;
       ZoneDetectResult* results = ZDLookup(cd, lat, lon, &safezone);
       ZonePrintResults(cd, results, safezone);
+
+      char* simple_str = ZDHelperSimpleLookupString(cd, lat, lon);
       DMLOG("The simple string is [%s]\n", ZDHelperSimpleLookupString(cd, lat, lon));
+      if (CsvQueryTimeZone(cd, simple_str, buffer_zone, 64)) {
+        DMLOG("Time zone %s\n", buffer_zone);
+        SetAndTransformUnixTime(1755759733, buffer_zone);
+      }
+      free(simple_str);
+    }
+
+    // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.json
+    {
+      // test to set time zone and convert unix time
+      const float lat = 22.781663;
+      const float lon = 113.513604;
+      DMLOG("\n[GPS] test %f %f\n", lat, lon);
+
+      char* simple_str = ZDHelperSimpleLookupString(cd, lat, lon);
+      DMLOG("The simple string is [%s]\n", ZDHelperSimpleLookupString(cd, lat, lon));
+      if (CsvQueryTimeZone(cd, simple_str, buffer_zone, 64)) {
+        DMLOG("Time zone %s\n", buffer_zone);
+        SetAndTransformUnixTime(1755759733, buffer_zone);
+      }
+      free(simple_str);
     }
   }
   PrintMemoryInfo();
