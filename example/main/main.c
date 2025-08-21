@@ -61,7 +61,7 @@ void app_main(void) {
 
   ZDSetErrorHandler(ZoneonError);
 
-  ZoneDetect* const cd = ZDOpenDatabase("/sd/zone_db/timezone16.bin");
+  ZoneDetect* const cd = ZDOpenDatabase("zonedb");
   if (!cd) {
     DMLOG("[GPS] open data base failed.\n");
   } else {

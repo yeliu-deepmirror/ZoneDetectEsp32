@@ -42,12 +42,16 @@
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
 #include <errno.h>
 #include <sys/stat.h>
-// #include <sys/mman.h>
+#include "esp_partition.h"
+#include "esp_log.h"
 #else
 #include <errno.h>
 #endif
 
 #include "zonedetect.h"
+
+
+static const char *TAG = "ZoneDetect";
 
 enum ZDInternalError {
     ZD_OK,
@@ -75,8 +79,9 @@ struct ZoneDetectOpaque {
     int fd;
     off_t length;
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
-    FILE* fd;
-    int32_t length;
+    uint32_t length;
+    esp_partition_t *partition;
+    esp_partition_mmap_handle_t map_handle;
 #else
     int length;
 #endif
@@ -292,6 +297,8 @@ static int ZDParseHeader(ZoneDetect *library)
     }
 #endif
 
+    ESP_LOGI(TAG, "tableType: %d, version: %d, precision: %d, numFields: %d", library->tableType, library->version, library->precision, library->numFields);
+
     if(library->version >= 2) {
         return -1;
     }
@@ -310,6 +317,7 @@ static int ZDParseHeader(ZoneDetect *library)
 
     library->notice = ZDParseString(library, &index);
     if(!library->notice) {
+        ESP_LOGE(TAG, " not notice");
         return -1;
     }
 
@@ -331,9 +339,12 @@ static int ZDParseHeader(ZoneDetect *library)
     library->dataOffset += index;
 
     /* Verify file length */
-    if(tmp + library->dataOffset != (uint32_t)library->length) {
-        return -2;
-    }
+    // if(tmp + library->dataOffset != (uint32_t)library->length) {
+    //     ESP_LOGE(TAG, " %lu != %lu", tmp + library->dataOffset, library->length);
+    //     return -2;
+    // }
+    // ESP32 partition's size, is not the length
+    library->length = tmp + library->dataOffset;
 
     return 0;
 }
@@ -818,7 +829,10 @@ void ZDCloseDatabase(ZoneDetect *library)
             if(library->fd >= 0 && close(library->fd))                                  zdError(ZD_E_DB_CLOSE, 0);
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
             // if(library->mapping && munmap(library->mapping, (size_t)(library->length))) zdError(ZD_E_DB_MUNMAP, 0);
-            if(library->fd >= 0 && fclose(library->fd) != EOF)                          zdError(ZD_E_DB_CLOSE, 0);
+            // if(library->fd >= 0 && fclose(library->fd) != EOF)                          zdError(ZD_E_DB_CLOSE, 0);
+            // Unmap mapped memory
+            esp_partition_munmap(library->map_handle);
+            ESP_LOGI(TAG, "Unmapped partition from data memory");
 #endif
         }
 
@@ -913,33 +927,26 @@ ZoneDetect *ZDOpenDatabase(const char *path)
         }
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
         // we are in esp32 system
-        library->fd = fopen(path, "rb");
-        if (!library->fd) {
-            zdError(ZD_E_DB_OPEN, errno);
-            goto fail;
-        }
-        struct stat st;
-        if (stat(path, &st) == 0) {
-          library->length = st.st_size;
-        } else {
-          zdError(ZD_E_DB_SEEK, errno);
+        // Find the partition map in the partition table
+        library->partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, path);
+        if (library->partition == NULL) {
+          zdError(ZD_E_DB_OPEN, errno);
           goto fail;
         }
+        library->length = library->partition->size;
 
-        zdError(ZD_E_DB_FS, errno);
-        goto fail;
-        // library->mapping = mmap(NULL, (size_t)library->length, PROT_READ, MAP_PRIVATE | MAP_FILE, library->fd, 0);
-        // if(library->mapping == MAP_FAILED) {
-        //     zdError(ZD_E_DB_MMAP, errno);
-        //     goto fail;
-        // }
+        const void *map_ptr = NULL;
+        // Map the partition to data memory
+        ESP_ERROR_CHECK(esp_partition_mmap(library->partition, 0, library->length, ESP_PARTITION_MMAP_DATA, &map_ptr, &library->map_handle));
+        ESP_LOGI(TAG, "Mapped %lu partition to data memory address %p", library->length, map_ptr);
+        library->mapping = map_ptr;
 #else
         zdError(ZD_E_DB_FS, errno);
         goto fail;
 #endif
 
         /* Parse the header */
-        if(ZDParseHeader(library)) {
+        if (ZDParseHeader(library)) {
             zdError(ZD_E_PARSE_HEADER, 0);
             goto fail;
         }

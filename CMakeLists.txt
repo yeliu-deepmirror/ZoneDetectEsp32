@@ -1,6 +1,8 @@
 idf_component_register(
 	  SRCS "library/zonedetect.c"
     INCLUDE_DIRS "library"
+		REQUIRES esp_partition
+		PRIV_REQUIRES spi_flash
 )
 
 
